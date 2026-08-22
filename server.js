@@ -51,16 +51,10 @@ app.get('/', (req, res) => {
 
   <!-- Giriş Ekranı -->
   <div id="auth-section" class="auth-box">
-    <h2 style="color:#00a884; text-align:center;">WhatsApp Pro</h2>
+    <h2 style="color:#00a884; text-align:center; margin-bottom:10px;">WhatsApp Pro</h2>
     <input type="text" id="phone" placeholder="Telefon nömrəniz (+994...)">
     <input type="text" id="username" placeholder="Adınız">
-    <button class="btn-main" onclick="sendOTP()">Davam Et</button>
-
-    <div id="otp-box" class="hidden" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-      <p style="font-size: 13px; color: #8696a0;">Test kodunu daxil edin (<b>123456</b>):</p>
-      <input type="text" id="otp" placeholder="123456">
-      <button class="btn-main" onclick="verifyOTP()">Daxil Ol</button>
-    </div>
+    <button class="btn-main" onclick="directLogin()">Daxil Ol</button>
   </div>
 
   <!-- Əsas Ekran -->
@@ -148,21 +142,14 @@ app.get('/', (req, res) => {
     }
   };
 
-  function sendOTP() {
-    var phone = document.getElementById('phone').value;
-    var username = document.getElementById('username').value;
+  function directLogin() {
+    var phone = document.getElementById('phone').value.trim();
+    var username = document.getElementById('username').value.trim();
     if (!phone || !username) return alert('Nömrə və adınızı yazın!');
-    currentUser = { name: username, phone: phone };
-    document.getElementById('otp-box').classList.remove('hidden');
-  }
 
-  function verifyOTP() {
-    if (document.getElementById('otp').value === '123456') {
-      localStorage.setItem('wp_user', JSON.stringify(currentUser));
-      initApp();
-    } else {
-      alert('Yanlış kod! Test kodu: 123456');
-    }
+    currentUser = { name: username, phone: phone };
+    localStorage.setItem('wp_user', JSON.stringify(currentUser));
+    initApp();
   }
 
   function logout() {
@@ -403,4 +390,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+
 
