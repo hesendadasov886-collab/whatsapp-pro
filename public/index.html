@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #111b21; color: #e9edef; display: flex; justify-content: center; height: 100vh; }
+    .app-container { width: 100%; max-width: 450px; height: 100vh; background: #0b141a; display: flex; flex-direction: column; }
+    .header { background: #202c33; padding: 15px; font-size: 18px; font-weight: bold; color: #00a884; display: flex; justify-content: space-between; }
+    .auth-box { padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+    input { padding: 12px; background: #2a3942; border: none; border-radius: 8px; color: #fff; font-size: 15px; }
+    button { padding: 12px; background: #00a884; border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
+    .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .msg { padding: 8px 12px; border-radius: 8px; max-width: 75%; width: fit-content; font-size: 14px; }
+    .msg.sent { background: #005c4b; align-self: flex-end; }
+    .msg.received { background: #202c33; align-self: flex-start; }
+    .hidden { display: none !important; }
+    .status-bar { background: #111b21; padding: 10px; border-bottom: 1px solid #222d34; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="header">
+    <span>WhatsApp Pro</span>
+    <span id="status-btn" style="font-size:12px; cursor:pointer;" onclick="toggleStatus()">Status Paylaş</span>
+  </div>
+
+  <div id="auth-section" class="auth-box">
+    <h3>Telefonla Giriş</h3>
+    <input type="text" id="phone" placeholder="+994XXXXXXXXX">
+    <input type="text" id="username" placeholder="Adınız">
+    <button onclick="sendOTP()">SMS Kod Göndər</button>
+
+    <div id="otp-box" class="hidden" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+      <input type="text" id="otp" placeholder="6 rəqəmli OTP">
+      <button onclick="verifyOTP()">Qeydiyyatı Tamamla</button>
+    </div>
+  </div>
+
+  <div id="chat-section" class="hidden" style="flex:1; display:flex; flex-direction:column;">
+    <div class="status-bar" id="status-display">Aktiv Status Yoxdur</div>
+    <div class="messages-area" id="messages"></div>
+    <div style="padding:10px; background:#202c33; display:flex; gap:5px;">
+      <input type="text" id="receiver" placeholder="Qarşı tel:" style="width:35%;">
+      <input type="text" id="message" placeholder="Mesaj..." style="flex:1;">
+      <button onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  let socket;
+  let currentUser = null;
+
+  if ('Notification' in window) {
+    Notification.requestPermission();
+  }
+
+  async function sendOTP() {
+    const phone = document.getElementById('phone').value;
+    const res = await fetch('/api/send-otp', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ phone })
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(`SMS Kod Göndərildi! Test Kodunuz: ${data.testOtp}`);
+      document.getElementById('otp-box').classList.remove('hidden');
+    }
+  }
+
+  async function verifyOTP() {
+    const phone = document.getElementById('phone').value;
+    const username = document.getElementById('username').value;
+    const otp = document.getElementById('otp').value;
+
+    const res = await fetch('/api/verify-otp', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ phone, otp, username })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      currentUser = data.user;
+      initChat();
+    } else {
+      alert(data.message);
+    }
+  }
+
+  function initChat() {
+    document.getElementById('auth-section').classList.add('hidden');
+    document.getElementById('chat-section').classList.remove('hidden');
+
+    socket = io();
+    socket.emit('register_user', currentUser.phone);
+
+    socket.on('receive_private_message', (msg) => {
+      renderMessage(msg.text, 'received');
+      showNotification(msg.senderPhone, msg.text);
+    });
+
+    socket.on('message_sent', (msg) => {
+      renderMessage(msg.text, 'sent');
+    });
+
+    socket.on('new_status', (status) => {
+      document.getElementById('status-display').innerText = `Son Status (${status.userPhone}): ${status.text}`;
+    });
+  }
+
+  function sendMessage() {
+    const receiverPhone = document.getElementById('receiver').value;
+    const text = document.getElementById('message').value;
+    if (!receiverPhone || !text) return;
+
+    socket.emit('send_private_message', {
+      senderPhone: currentUser.phone,
+      receiverPhone,
+      text
+    });
+    document.getElementById('message').value = '';
+  }
+
+  function renderMessage(text, type) {
+    const div = document.createElement('div');
+    div.className = `msg ${type}`;
+    div.innerText = text;
+    document.getElementById('messages').appendChild(div);
+  }
+
+  function showNotification(sender, text) {
+    if (Notification.permission === 'granted') {
+      new Notification(`Yeni Mesaj: ${sender}`, { body: text });
+    }
+  }
+
+  async function toggleStatus() {
+    const text = prompt("Statusunuzu yazın (24 saat aktiv qalacaq):");
+    if (text && currentUser) {
+      await fetch('/api/status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ userPhone: currentUser.phone, text })
+      });
+    }
+  }
+</script>
+</body>
+</html>
+
