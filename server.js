@@ -9,7 +9,6 @@ const io = new Server(server, { cors: { origin: "*" } });
 const users = {};
 let statuses = [];
 
-// Tam interfeysi birbaşa serverdən göndəririk
 app.get('/', (req, res) => {
   res.send(`
 <!DOCTYPE html>
@@ -22,15 +21,15 @@ app.get('/', (req, res) => {
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background: #111b21; color: #e9edef; display: flex; justify-content: center; height: 100vh; }
     .app-container { width: 100%; max-width: 450px; height: 100vh; background: #0b141a; display: flex; flex-direction: column; }
-    .header { background: #202c33; padding: 12px 15px; font-size: 16px; font-weight: bold; color: #00a884; display: flex; align-items: center; justify-content: space-between; }
+    .header { background: #202c33; padding: 12px 15px; font-size: 16px; font-weight: bold; color: #00a884; display: flex; justify-content: space-between; align-items: center; }
     .auth-box { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
     input { padding: 12px; background: #2a3942; border: none; border-radius: 8px; color: #fff; font-size: 15px; outline: none; }
     button { padding: 10px 14px; background: #00a884; border: none; border-radius: 8px; color: #fff; font-weight: bold; cursor: pointer; }
     .user-list { flex: 1; overflow-y: auto; padding: 10px; }
-    .user-item { padding: 12px; background: #202c33; margin-bottom: 8px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-    .status-bar { background: #182229; padding: 10px; display: flex; gap: 10px; overflow-x: auto; border-bottom: 1px solid #222d34; align-items: flex-start; }
-    .status-card { background: #202c33; padding: 8px 10px; border-radius: 12px; min-width: 140px; max-width: 180px; border-left: 3px solid #00a884; flex-shrink: 0; }
-    .messages-area { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+    .user-item { padding: 12px; background: #202c33; margin-bottom: 8px; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; }
+    .status-bar { background: #182229; padding: 10px; display: flex; gap: 10px; overflow-x: auto; border-bottom: 1px solid #222d34; }
+    .status-card { background: #202c33; padding: 8px 10px; border-radius: 12px; min-width: 140px; border: 1px solid #00a884; }
+    .messages-area { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
     .msg { padding: 8px 12px; border-radius: 8px; max-width: 75%; width: fit-content; font-size: 14px; word-break: break-word; }
     .msg.sent { background: #005c4b; align-self: flex-end; }
     .msg.received { background: #202c33; align-self: flex-start; }
@@ -41,257 +40,212 @@ app.get('/', (req, res) => {
 </head>
 <body>
 
-<div class="app-container">
-  <!-- Giriş Ekranı -->
-  <div id="auth-section" class="auth-box">
-    <h3 style="color:#00a884;">WhatsApp Pro Giriş</h3>
-    <input type="text" id="phone" placeholder="Telefon nömrəniz (+994...)">
-    <input type="text" id="username" placeholder="Adınız">
-    <button onclick="sendOTP()">Davam Et</button>
+  <div class="app-container">
+    <!-- Giriş Ekranı -->
+    <div id="auth-section" class="auth-box">
+      <h3 style="color:#00a884;">WhatsApp Pro Giriş</h3>
+      <input type="text" id="phone" placeholder="Telefon nömrəniz (+994...)">
+      <input type="text" id="username" placeholder="Adınız">
+      <button onclick="sendOTP()">Davam Et</button>
 
-    <div id="otp-box" class="hidden" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-      <p style="font-size: 12px; color: #8696a0;">Test kodunu daxil edin (<b>123456</b>):</p>
-      <input type="text" id="otp" placeholder="123456">
-      <button onclick="verifyOTP()">Daxil Ol</button>
-    </div>
-  </div>
-
-  <!-- Söhbətlər və Status Siyahısı Ekranı -->
-  <div id="list-section" class="hidden" style="flex:1; display:flex; flex-direction:column;">
-    <div class="header">
-      <span>WhatsApp Pro</span>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <button onclick="addStatus()" style="font-size:12px; padding:6px 10px;">+ Status</button>
-        <button class="logout-btn" onclick="logout()">Çıxış</button>
+      <div id="otp-box" class="hidden" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+        <p style="font-size: 12px; color: #8696a0;">Test kodunu daxil edin (<b>123456</b>):</p>
+        <input type="text" id="otp" placeholder="123456">
+        <button onclick="verifyOTP()">Daxil Ol</button>
       </div>
     </div>
 
-    <!-- Statuslar Zolağı -->
-    <div id="status-container" class="status-bar">
-      <span style="font-size:12px; color:#8696a0; align-self:center;">Hələ status paylaşılmayıb</span>
+    <!-- Söhbətlər və Status Siyahısı -->
+    <div id="list-section" class="hidden" style="flex:1; display:flex; flex-direction:column;">
+      <div class="header">
+        <span>WhatsApp Pro</span>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button onclick="addStatus()" style="font-size:12px; padding:6px 10px;">+ Status</button>
+          <button class="logout-btn" onclick="logout()">Çıxış</button>
+        </div>
+      </div>
+
+      <div id="status-container" class="status-bar">
+        <span style="font-size: 12px; color: #8696a0; align-self:center;">Hələ status paylaşılmayıb</span>
+      </div>
+
+      <div style="padding:10px 15px 5px; font-size:13px; color:#00a884; font-weight:bold;">Söhbətlər (Onlayn İstifadəçilər)</div>
+      <div class="user-list" id="users-container"></div>
     </div>
 
-    <div style="padding:10px 15px 5px; font-size:13px; color:#00a884; font-weight:bold;">Söhbətlər (Onlayn İstifadəçilər)</div>
-    <div class="user-list" id="users-container"></div>
-  </div>
-
-  <!-- Şəxsi Çat Ekranı -->
-  <div id="chat-section" class="hidden" style="flex:1; display:flex; flex-direction:column;">
-    <div class="header">
-      <div style="display:flex; align-items:center;">
-        <button class="back-btn" onclick="backToList()">←</button>
-        <span id="chat-with-name">Çat</span>
+    <!-- Şəxsi Çat Ekranı -->
+    <div id="chat-section" class="hidden" style="flex:1; display:flex; flex-direction:column;">
+      <div class="header">
+        <div style="display:flex; align-items:center;">
+          <button class="back-btn" onclick="backToList()">←</button>
+          <span id="chat-with-name">Çat</span>
+        </div>
+      </div>
+      <div class="messages-area" id="messages"></div>
+      <div style="padding:10px; background:#202c33; display:flex; gap:8px;">
+        <input type="text" id="message" placeholder="Mesaj yazın..." style="flex:1;">
+        <button onclick="sendMessage()">></button>
       </div>
     </div>
-    <div class="messages-area" id="messages"></div>
-    <div style="padding:10px; background:#202c33; display:flex; gap:8px;">
-      <input type="text" id="message" placeholder="Mesaj yazın..." style="flex:1;">
-      <button onclick="sendMessage()">➤</button>
-    </div>
   </div>
-</div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-  let socket;
-  let currentUser = { name: '', phone: '' };
-  let activeRecipient = null;
-  const chatHistories = {};
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    let myPhone = "";
+    let myName = "";
+    let activeChatPhone = null;
 
-  window.onload = function() {
-    const savedUser = localStorage.getItem('wp_user');
-    if (savedUser) {
-      currentUser = JSON.parse(savedUser);
-      initApp();
+    function sendOTP() {
+      myPhone = document.getElementById('phone').value.trim();
+      myName = document.getElementById('username').value.trim();
+      if(!myPhone || !myName) return alert("Bütün xanaları doldurun!");
+      document.getElementById('otp-box').classList.remove('hidden');
     }
-  };
 
-  function sendOTP() {
-    const phone = document.getElementById('phone').value;
-    const username = document.getElementById('username').value;
-    if (!phone || !username) return alert("Nömrə və adınızı yazın!");
-    currentUser = { name: username, phone: phone };
-    document.getElementById('otp-box').classList.remove('hidden');
-  }
+    function verifyOTP() {
+      const otp = document.getElementById('otp').value.trim();
+      if(otp !== "123456") return alert("Yanlış OTP Kodu! (Test kodu: 123456)");
+      
+      document.getElementById('auth-section').classList.add('hidden');
+      document.getElementById('list-section').classList.remove('hidden');
 
-  function verifyOTP() {
-    if (document.getElementById('otp').value === "123456") {
-      localStorage.setItem('wp_user', JSON.stringify(currentUser));
-      initApp();
-    } else {
-      alert("Yanlış kod! Test kodu: 123456");
+      socket.emit('register_user', { phone: myPhone, name: myName });
     }
-  }
 
-  function logout() {
-    localStorage.removeItem('wp_user');
-    location.reload();
-  }
+    function logout() {
+      location.reload();
+    }
 
-  function initApp() {
-    document.getElementById('auth-section').classList.add('hidden');
-    document.getElementById('list-section').classList.remove('hidden');
+    socket.on('update_users', (userList) => {
+      const container = document.getElementById('users-container');
+      container.innerHTML = "";
+      
+      const otherUsers = Object.keys(userList).filter(p => p !== myPhone);
+      
+      if(otherUsers.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#8696a0; margin-top:20px; font-size:14px;">Hələlik başqa onlayn istifadəçi yoxdur. Linki dostlarınıza atın!</div>';
+        return;
+      }
 
-    socket = io();
-    socket.emit('user joined', currentUser);
+      otherUsers.forEach(phone => {
+        const u = userList[phone];
+        const div = document.createElement('div');
+        div.className = 'user-item';
+        div.innerHTML = \`<span>\${u.name} (\${phone})</span> <span style="color:#00a884; font-size:12px;">● Onlayn</span>\`;
+        div.onclick = () => openChat(phone, u.name);
+        container.appendChild(div);
+      });
+    });
 
-    socket.on('update user list', (users) => renderUserList(users));
-    socket.on('update statuses', (statuses) => renderStatuses(statuses));
+    function openChat(phone, name) {
+      activeChatPhone = phone;
+      document.getElementById('chat-with-name').innerText = name;
+      document.getElementById('messages').innerHTML = "";
+      document.getElementById('list-section').classList.add('hidden');
+      document.getElementById('chat-section').classList.remove('hidden');
+    }
 
-    socket.on('private message', (data) => {
-      if (!chatHistories[data.senderId]) chatHistories[data.senderId] = [];
-      chatHistories[data.senderId].push({ text: data.text, type: 'received' });
+    function backToList() {
+      activeChatPhone = null;
+      document.getElementById('chat-section').classList.add('hidden');
+      document.getElementById('list-section').classList.remove('hidden');
+    }
 
-      if (activeRecipient && activeRecipient.id === data.senderId) {
-        renderMessages();
+    function sendMessage() {
+      const input = document.getElementById('message');
+      const text = input.value.trim();
+      if(!text || !activeChatPhone) return;
+
+      socket.emit('send_private_message', {
+        toPhone: activeChatPhone,
+        fromPhone: myPhone,
+        message: text
+      });
+
+      appendMessage(text, 'sent');
+      input.value = "";
+    }
+
+    socket.on('receive_private_message', (data) => {
+      if(data.fromPhone === activeChatPhone) {
+        appendMessage(data.message, 'received');
       } else {
-        alert(data.senderName + ' sizə mesaj yazdı!');
+        alert("Yeni mesajınız var: " + data.fromName);
       }
     });
-  }
 
-  function addStatus() {
-    const text = prompt("Status mətninizi yazın:");
-    if (!text || !text.trim()) return;
-
-    const imageUrl = prompt("Varsa Şəkil URL-i daxil edin (istəməsəniz boş saxlayın):");
-
-    socket.emit('post status', {
-      text: text.trim(),
-      imageUrl: imageUrl && imageUrl.trim() ? imageUrl.trim() : null
-    });
-  }
-
-  function renderStatuses(statuses) {
-    const box = document.getElementById('status-container');
-    if (!statuses || statuses.length === 0) {
-      box.innerHTML = '<span style="font-size:12px; color:#8696a0; align-self:center;">Hələ status paylaşılmayıb</span>';
-      return;
-    }
-    box.innerHTML = statuses.map(s => \`
-      <div class="status-card">
-        <div style="font-size:11px; color:#00a884; font-weight:bold; margin-bottom: 4px;">\${s.userName}</div>
-        \${s.imageUrl ? \`<img src="\${s.imageUrl}" style="width: 100%; max-height: 120px; object-fit: cover; border-radius: 6px; margin-bottom: 4px;" onerror="this.style.display='none'">\` : ''}
-        <div style="font-size:12px; color:#fff; word-break: break-word;">\${s.text}</div>
-        <div style="font-size:9px; color:#8696a0; text-align:right; margin-top: 4px;">\${s.time}</div>
-      </div>
-    \`).join('');
-  }
-
-  function renderUserList(users) {
-    const container = document.getElementById('users-container');
-    container.innerHTML = '';
-    const otherUsers = users.filter(u => u.id !== socket.id);
-
-    if (otherUsers.length === 0) {
-      container.innerHTML = '<p style="color:#8696a0; text-align:center; margin-top:20px;">Hələlik başqa onlayn istifadəçi yoxdur. Linki dostlarınıza atın!</p>';
-      return;
+    function appendMessage(text, type) {
+      const area = document.getElementById('messages');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = \`msg \${type}\`;
+      msgDiv.innerText = text;
+      area.appendChild(msgDiv);
+      area.scrollTop = area.scrollHeight;
     }
 
-    otherUsers.forEach(u => {
-      const div = document.createElement('div');
-      div.className = 'user-item';
-      div.innerHTML = '<div><b>' + u.name + '</b><br><small style="color:#8696a0;">' + u.phone + '</small></div> <span style="color:#00a884; font-size:12px;">● Onlayn</span>';
-      div.onclick = () => openChat(u);
-      container.appendChild(div);
+    function addStatus() {
+      const text = prompt("Status metnini daxil edin:");
+      if(text) {
+        socket.emit('post_status', { name: myName, text: text });
+      }
+    }
+
+    socket.on('update_statuses', (statusList) => {
+      const container = document.getElementById('status-container');
+      if(statusList.length === 0) return;
+      container.innerHTML = "";
+      statusList.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'status-card';
+        card.innerHTML = \`<div style="font-size:11px; color:#00a884; font-weight:bold;">\${s.name}</div><div style="font-size:13px; margin-top:3px;">\${s.text}</div>\`;
+        container.appendChild(card);
+      });
     });
-  }
-
-  function openChat(user) {
-    activeRecipient = user;
-    if (!chatHistories[user.id]) chatHistories[user.id] = [];
-    document.getElementById('chat-with-name').innerText = user.name;
-    document.getElementById('list-section').classList.add('hidden');
-    document.getElementById('chat-section').classList.remove('hidden');
-    renderMessages();
-  }
-
-  function backToList() {
-    activeRecipient = null;
-    document.getElementById('chat-section').classList.add('hidden');
-    document.getElementById('list-section').classList.remove('hidden');
-  }
-
-  function sendMessage() {
-    const input = document.getElementById('message');
-    const text = input.value.trim();
-    if (!text || !activeRecipient) return;
-
-    socket.emit('private message', {
-      recipientId: activeRecipient.id,
-      text: text,
-      senderName: currentUser.name,
-      senderPhone: currentUser.phone
-    });
-
-    chatHistories[activeRecipient.id].push({ text: text, type: 'sent' });
-    renderMessages();
-    input.value = '';
-  }
-
-  function renderMessages() {
-    const area = document.getElementById('messages');
-    area.innerHTML = '';
-    if (!activeRecipient || !chatHistories[activeRecipient.id]) return;
-
-    chatHistories[activeRecipient.id].forEach(msg => {
-      const div = document.createElement('div');
-      div.className = 'msg ' + msg.type;
-      div.innerText = msg.text;
-      area.appendChild(div);
-    });
-    area.scrollTop = area.scrollHeight;
-  }
-</script>
+  </script>
 </body>
 </html>
   `);
 });
 
-// Socket.io Hadisələri
 io.on('connection', (socket) => {
-  // İlk qoşulanda statusları göndəririk
-  socket.emit('update statuses', statuses);
-
-  socket.on('user joined', (data) => {
-    users[socket.id] = { name: data.name, phone: data.phone, id: socket.id };
-    io.emit('update user list', Object.values(users));
+  socket.on('register_user', (data) => {
+    users[data.phone] = { socketId: socket.id, name: data.name };
+    io.emit('update_users', users);
+    socket.emit('update_statuses', statuses);
   });
 
-  socket.on('post status', (data) => {
-    const user = users[socket.id];
-    if (!user) return;
-
-    const newStatus = {
-      id: Date.now(),
-      userName: user.name,
-      userPhone: user.phone,
-      text: data.text,
-      imageUrl: data.imageUrl,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    statuses.unshift(newStatus);
-    io.emit('update statuses', statuses);
+  socket.on('send_private_message', (data) => {
+    const recipient = users[data.toPhone];
+    if (recipient) {
+      io.to(recipient.socketId).emit('receive_private_message', {
+        fromPhone: data.fromPhone,
+        fromName: users[data.fromPhone] ? users[data.fromPhone].name : data.fromPhone,
+        message: data.message
+      });
+    }
   });
 
-  socket.on('private message', (data) => {
-    io.to(data.recipientId).emit('private message', {
-      senderId: socket.id,
-      senderName: data.senderName,
-      senderPhone: data.senderPhone,
-      text: data.text
-    });
+  socket.on('post_status', (data) => {
+    statuses.unshift(data);
+    if(statuses.length > 10) statuses.pop();
+    io.emit('update_statuses', statuses);
   });
 
   socket.on('disconnect', () => {
-    delete users[socket.id];
-    io.emit('update user list', Object.values(users));
+    for (let phone in users) {
+      if (users[phone].socketId === socket.id) {
+        delete users[phone];
+        break;
+      }
+    }
+    io.emit('update_users', users);
   });
 });
 
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
 
 
 
