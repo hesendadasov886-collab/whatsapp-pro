@@ -1,3 +1,4 @@
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -10,14 +11,15 @@ const users = {};
 let statuses = [];
 
 app.get('/', (req, res) => {
-  res.send(`<!DOCTYPE html>
+  res.send(`
+<!DOCTYPE html>
 <html lang="az">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WhatsApp Pro</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
     body { background: #0b141a; color: #e9edef; display: flex; justify-content: center; height: 100vh; }
     .app-container { width: 100%; max-width: 450px; height: 100vh; background: #0b141a; display: flex; flex-direction: column; position: relative; }
     .header { background: #111b21; padding: 15px 20px; font-size: 20px; font-weight: bold; color: #e9edef; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #222d34; }
@@ -29,7 +31,7 @@ app.get('/', (req, res) => {
     .section-title { font-size: 16px; font-weight: bold; color: #e9edef; margin-bottom: 15px; }
     .sub-title { font-size: 14px; font-weight: bold; color: #8696a0; margin: 20px 0 10px 0; }
     .status-item { display: flex; align-items: center; gap: 15px; padding: 10px 0; cursor: pointer; }
-    .avatar-wrapper { position: relative; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #202c33; flex-shrink: 0; }
+    .avatar-wrapper { position: relative; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #202c33; }
     .avatar-wrapper.has-status { border: 2.5px solid #00a884; padding: 2px; }
     .add-icon { position: absolute; bottom: 0; right: 0; background: #00a884; color: #111b21; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; border: 2px solid #0b141a; }
     .status-info { flex: 1; display: flex; flex-direction: column; gap: 3px; }
@@ -49,15 +51,19 @@ app.get('/', (req, res) => {
 
 <div class="app-container">
 
-  <!-- Giriş Ekranı -->
   <div id="auth-section" class="auth-box">
-    <h2 style="color:#00a884; text-align:center; margin-bottom:10px;">WhatsApp Pro</h2>
+    <h2 style="color:#00a884; text-align:center;">WhatsApp Pro</h2>
     <input type="text" id="phone" placeholder="Telefon nömrəniz (+994...)">
     <input type="text" id="username" placeholder="Adınız">
-    <button class="btn-main" onclick="directLogin()">Daxil Ol</button>
+    <button class="btn-main" onclick="sendOTP()">Davam Et</button>
+
+    <div id="otp-box" class="hidden" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+      <p style="font-size: 13px; color: #8696a0;">Test kodunu daxil edin (<b>123456</b>):</p>
+      <input type="text" id="otp" placeholder="123456">
+      <button class="btn-main" onclick="verifyOTP()">Daxil Ol</button>
+    </div>
   </div>
 
-  <!-- Əsas Ekran -->
   <div id="main-section" class="hidden" style="flex:1; display:flex; flex-direction:column; height:100%;">
     <div class="header">
       <span id="page-title">Gündəm</span>
@@ -65,7 +71,6 @@ app.get('/', (req, res) => {
     </div>
 
     <div class="content-area">
-      <!-- 1. TAB: STATUSLAR (YENİLƏMƏLƏR) -->
       <div id="tab-updates" class="status-section">
         <div class="section-title">Durum</div>
         <div class="status-item" onclick="addStatus()">
@@ -85,13 +90,11 @@ app.get('/', (req, res) => {
         </div>
       </div>
 
-      <!-- 2. TAB: SÖHBƏTLƏR -->
       <div id="tab-chats" class="hidden">
         <div id="users-container"></div>
       </div>
     </div>
 
-    <!-- Alt Menyu -->
     <div class="bottom-nav">
       <button class="nav-item" id="nav-chats-btn" onclick="switchTab('chats')">
         <span class="nav-icon">💬</span>
@@ -104,7 +107,6 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
-  <!-- Çat Ekranı -->
   <div id="chat-section" class="hidden" style="flex:1; display:flex; flex-direction:column; height:100%;">
     <div class="header">
       <div style="display:flex; align-items:center; gap:10px;">
@@ -119,7 +121,6 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
-  <!-- Statusa Baxmaq üçün Modal -->
   <div id="status-modal" class="modal hidden" onclick="closeStatusModal()">
     <div id="modal-content" style="background:#202c33; padding:20px; border-radius:12px; max-width:90%; text-align:center; color:#fff;" onclick="event.stopPropagation()">
     </div>
@@ -129,27 +130,34 @@ app.get('/', (req, res) => {
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  var socket;
-  var currentUser = { name: '', phone: '' };
-  var activeRecipient = null;
-  var chatHistories = {};
+  let socket;
+  let currentUser = { name: '', phone: '' };
+  let activeRecipient = null;
+  const chatHistories = {};
 
   window.onload = function() {
-    var savedUser = localStorage.getItem('wp_user');
+    const savedUser = localStorage.getItem('wp_user');
     if (savedUser) {
       currentUser = JSON.parse(savedUser);
       initApp();
     }
   };
 
-  function directLogin() {
-    var phone = document.getElementById('phone').value.trim();
-    var username = document.getElementById('username').value.trim();
-    if (!phone || !username) return alert('Nömrə və adınızı yazın!');
-
+  function sendOTP() {
+    const phone = document.getElementById('phone').value;
+    const username = document.getElementById('username').value;
+    if (!phone || !username) return alert("Nömrə və adınızı yazın!");
     currentUser = { name: username, phone: phone };
-    localStorage.setItem('wp_user', JSON.stringify(currentUser));
-    initApp();
+    document.getElementById('otp-box').classList.remove('hidden');
+  }
+
+  function verifyOTP() {
+    if (document.getElementById('otp').value === "123456") {
+      localStorage.setItem('wp_user', JSON.stringify(currentUser));
+      initApp();
+    } else {
+      alert("Yanlış kod! Test kodu: 123456");
+    }
   }
 
   function logout() {
@@ -164,10 +172,10 @@ app.get('/', (req, res) => {
     socket = io();
     socket.emit('user joined', currentUser);
 
-    socket.on('update user list', function(users) { renderUserList(users); });
-    socket.on('update statuses', function(statuses) { renderStatuses(statuses); });
+    socket.on('update user list', (users) => renderUserList(users));
+    socket.on('update statuses', (statuses) => renderStatuses(statuses));
 
-    socket.on('private message', function(data) {
+    socket.on('private message', (data) => {
       if (!chatHistories[data.senderId]) chatHistories[data.senderId] = [];
       chatHistories[data.senderId].push({ text: data.text, type: 'received' });
 
@@ -196,10 +204,10 @@ app.get('/', (req, res) => {
   }
 
   function addStatus() {
-    var text = prompt('Status mətninizi yazın:');
+    const text = prompt("Status mətninizi yazın:");
     if (!text || !text.trim()) return;
 
-    var imageUrl = prompt('Varsa Şəkil URL-i daxil edin (istəməsəniz boş saxlayın):');
+    const imageUrl = prompt("Varsa Şəkil URL-i daxil edin (istəməsəniz boş saxlayın):");
 
     socket.emit('post status', {
       text: text.trim(),
@@ -208,52 +216,37 @@ app.get('/', (req, res) => {
   }
 
   function renderStatuses(statuses) {
-    var box = document.getElementById('status-list');
+    const box = document.getElementById('status-list');
     if (!statuses || statuses.length === 0) {
       box.innerHTML = '<div style="font-size:13px; color:#8696a0;">Hələ heç kim status paylaşmayıb</div>';
       return;
     }
 
-    var html = '';
-    for (var i = 0; i < statuses.length; i++) {
-      var s = statuses[i];
-      html += '<div class="status-item" data-index="' + i + '">';
-      html += '<div class="avatar-wrapper has-status"><div style="font-size:18px;">👤</div></div>';
-      html += '<div class="status-info">';
-      html += '<div class="status-name">' + escapeHtml(s.userName) + '</div>';
-      html += '<div class="status-time">' + escapeHtml(s.time) + '</div>';
-      html += '</div></div>';
-    }
-    box.innerHTML = html;
-
-    var items = box.querySelectorAll('.status-item');
-    items.forEach(function(item) {
-      item.onclick = function() {
-        var idx = parseInt(this.getAttribute('data-index'));
-        var st = statuses[idx];
-        viewStatus(st.userName, st.text, st.imageUrl, st.time);
-      };
-    });
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    box.innerHTML = statuses.map(s => `
+      <div class="status-item" onclick="viewStatus('${s.userName}', '${s.text}', '${s.imageUrl || ''}', '${s.time}')">
+        <div class="avatar-wrapper has-status">
+          <div style="font-size:18px;">👤</div>
+        </div>
+        <div class="status-info">
+          <div class="status-name">${s.userName}</div>
+          <div class="status-time">${s.time}</div>
+        </div>
+      </div>
+    `).join('');
   }
 
   function viewStatus(name, text, img, time) {
-    var modal = document.getElementById('status-modal');
-    var content = document.getElementById('modal-content');
+    const modal = document.getElementById('status-modal');
+    const content = document.getElementById('modal-content');
     
-    var html = '<h3 style="color:#00a884; margin-bottom:8px;">' + escapeHtml(name) + '</h3>';
-    html += '<p style="font-size:12px; color:#8696a0; margin-bottom:15px;">' + escapeHtml(time) + '</p>';
-    if (img) {
-      html += '<img src="' + escapeHtml(img) + '" style="max-width:100%; max-height:250px; border-radius:8px; margin-bottom:12px;" onerror="this.style.display=\'none\'">';
-    }
-    html += '<p style="font-size:16px; word-break:break-word;">' + escapeHtml(text) + '</p>';
-    html += '<button onclick="closeStatusModal()" style="margin-top:20px; padding:8px 16px; background:#00a884; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Bağla</button>';
+    content.innerHTML = `
+      <h3 style="color:#00a884; margin-bottom:8px;">${name}</h3>
+      <p style="font-size:12px; color:#8696a0; margin-bottom:15px;">${time}</p>
+      ${img ? `<img src="${img}" style="max-width:100%; max-height:250px; border-radius:8px; margin-bottom:12px;" onerror="this.style.display='none'">` : ''}
+      <p style="font-size:16px; word-break:break-word;">${text}</p>
+      <button onclick="closeStatusModal()" style="margin-top:20px; padding:8px 16px; background:#00a884; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">Bağla</button>
+    `;
     
-    content.innerHTML = html;
     modal.classList.remove('hidden');
   }
 
@@ -262,25 +255,27 @@ app.get('/', (req, res) => {
   }
 
   function renderUserList(users) {
-    var container = document.getElementById('users-container');
+    const container = document.getElementById('users-container');
     container.innerHTML = '';
-    var otherUsers = users.filter(function(u) { return u.id !== socket.id; });
+    const otherUsers = users.filter(u => u.id !== socket.id);
 
     if (otherUsers.length === 0) {
       container.innerHTML = '<p style="color:#8696a0; text-align:center; padding:30px;">Hələlik başqa onlayn istifadəçi yoxdur.</p>';
       return;
     }
 
-    otherUsers.forEach(function(u) {
-      var div = document.createElement('div');
+    otherUsers.forEach(u => {
+      const div = document.createElement('div');
       div.className = 'user-item';
-      div.innerHTML = '<div class="avatar-wrapper"><div style="font-size:20px;">👤</div></div>' +
-        '<div style="flex:1;">' +
-        '<div style="font-weight:600; font-size:16px; color:#e9edef;">' + escapeHtml(u.name) + '</div>' +
-        '<div style="font-size:13px; color:#8696a0;">' + escapeHtml(u.phone) + '</div>' +
-        '</div>' +
-        '<span style="color:#00a884; font-size:12px;">● Onlayn</span>';
-      div.onclick = function() { openChat(u); };
+      div.innerHTML = `
+        <div class="avatar-wrapper"><div style="font-size:20px;">👤</div></div>
+        <div style="flex:1;">
+          <div style="font-weight:600; font-size:16px; color:#e9edef;">${u.name}</div>
+          <div style="font-size:13px; color:#8696a0;">${u.phone}</div>
+        </div>
+        <span style="color:#00a884; font-size:12px;">● Onlayn</span>
+      `;
+      div.onclick = () => openChat(u);
       container.appendChild(div);
     });
   }
@@ -301,8 +296,8 @@ app.get('/', (req, res) => {
   }
 
   function sendMessage() {
-    var input = document.getElementById('message');
-    var text = input.value.trim();
+    const input = document.getElementById('message');
+    const text = input.value.trim();
     if (!text || !activeRecipient) return;
 
     socket.emit('private message', {
@@ -318,12 +313,12 @@ app.get('/', (req, res) => {
   }
 
   function renderMessages() {
-    var area = document.getElementById('messages');
+    const area = document.getElementById('messages');
     area.innerHTML = '';
     if (!activeRecipient || !chatHistories[activeRecipient.id]) return;
 
-    chatHistories[activeRecipient.id].forEach(function(msg) {
-      var div = document.createElement('div');
+    chatHistories[activeRecipient.id].forEach(msg => {
+      const div = document.createElement('div');
       div.style.padding = '8px 12px';
       div.style.borderRadius = '8px';
       div.style.maxWidth = '75%';
@@ -345,7 +340,8 @@ app.get('/', (req, res) => {
   }
 </script>
 </body>
-</html>`);
+</html>
+  `);
 });
 
 io.on('connection', (socket) => {
