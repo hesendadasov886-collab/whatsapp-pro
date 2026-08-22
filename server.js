@@ -5,37 +5,40 @@ const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
-});
+const io = new Server(server, { cors: { origin: "*" } });
 
-// Statik faylları (public qovluğunu) təqdim etmək
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// Aktiv istifadəçilər siyahısı: { socketId: { name, phone } }
+const users = {};
 
-// Socket.io əlaqəsi
 io.on('connection', (socket) => {
-  console.log('İstifadəçi qoşuldu:', socket.id);
-
-  socket.on('chat message', (msg) => {
-    io.emit('chat message', msg);
+  // İstifadəçi sisteme daxil olduqda
+  socket.on('user joined', (data) => {
+    users[socket.id] = { name: data.name, phone: data.phone, id: socket.id };
+    io.emit('update user list', Object.values(users));
   });
 
+  // Şəxsi mesaj göndərmə
+  socket.on('private message', (data) => {
+    // data: { recipientId, text, senderName, senderPhone }
+    io.to(data.recipientId).emit('private message', {
+      senderId: socket.id,
+      senderName: data.senderName,
+      senderPhone: data.senderPhone,
+      text: data.text
+    });
+  });
+
+  // İstifadəçi çıxdıqda
   socket.on('disconnect', () => {
-    console.log('İstifadəçi ayrıldı:', socket.id);
+    delete users[socket.id];
+    io.emit('update user list', Object.values(users));
   });
 });
 
-// Render üçün dəqiq PORT parametri (0.0.0.0 hostu ilə)
 const PORT = process.env.PORT || 10000;
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`Server is running on port ${PORT}`));
+
 
 
